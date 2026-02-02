@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from db import models,schemas
@@ -18,6 +18,17 @@ def get_db():
 def add_wallet(
         wallet:schemas.WalletCreate,
         db: Session = Depends(get_db)):
+
+    existing_wallet = db.query(models.Wallet).filter(
+        models.Wallet.address == wallet.address
+    ).first()
+
+    if existing_wallet:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Wallet with this address already exists"
+        )
+
     db_wallet = models.Wallet(
         address=wallet.address,
         chain=wallet.chain,
