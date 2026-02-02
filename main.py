@@ -42,4 +42,14 @@ def add_wallet(
 
 @app.get("/wallets", response_model=list[schemas.Wallet])
 def get_wallets(db: Session = Depends(get_db)):
-    return db.query(models.Wallet).all()
+    wallets = db.query(models.Wallet).all()
+    if not wallets:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Wallet not found")
+    return wallets
+
+@app.get("/wallets/{wallet_id}", response_model=schemas.Wallet)
+def get_wallets(wallet_id: int, db: Session = Depends(get_db)):
+    wallet = db.query(models.Wallet).filter(models.Wallet.id == wallet_id).first()
+    if not wallet:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Wallet not found")
+    return wallet
