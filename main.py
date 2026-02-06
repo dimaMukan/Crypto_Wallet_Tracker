@@ -54,13 +54,25 @@ def get_wallets(db: Session = Depends(get_db)):
     return wallets
 
 @app.get("/wallets/{wallet_id}", response_model=schemas.Wallet)
-def get_wallets(wallet: models.Wallet = Depends(get_wallet())):
+def get_wallets(wallet: models.Wallet = Depends(get_wallet)):
     return wallet
 
 @app.delete("/wallets/delete/{wallet_id}", response_model=schemas.Wallet)
 def delete_wallet(wallet: models.Wallet = Depends(get_wallet), db: Session = Depends(get_db)):
     db.delete(wallet)
     db.commit()
+    return wallet
+
+@app.patch("/wallets/{wallet_id}", response_model=schemas.Wallet)
+def update_wallet(wallet_update: schemas.WalletUpdate,
+                  wallet: models.Wallet = Depends(get_wallet),
+                  db: Session = Depends(get_db)
+                  ):
+    update_data = wallet_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(wallet, key, value)
+    db.commit()
+    db.refresh(wallet)
     return wallet
 
 

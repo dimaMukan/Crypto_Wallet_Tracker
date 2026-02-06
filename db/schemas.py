@@ -17,7 +17,8 @@ class Wallet(BaseModel):
         from_attributes = True
 
 class WalletUpdate(BaseModel):
-    name: Optional[str] = None
-    balance: Optional[float] = None
+    address: Optional[str] = None
+    chain: Optional[str] = None
+    label: Optional[str] = None
     class Config:
         from_attributes = True
