@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from db import models,schemas
+from schemas import schemas
+from models import models
 from db.database import engine, SessionLocal
 
 app = FastAPI()
@@ -22,7 +22,7 @@ def get_wallet(wallet_id: int, db: Session = Depends(get_db)):
 
 @app.post("/wallets", response_model=schemas.Wallet)
 def add_wallet(
-        wallet:schemas.WalletCreate,
+        wallet: schemas.WalletCreate,
         db: Session = Depends(get_db)):
 
     existing_wallet = db.query(models.Wallet).filter(
