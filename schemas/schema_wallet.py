@@ -10,7 +10,7 @@ class ChainEnum(str,Enum):
 class WalletCreate(BaseModel):
     address: str
     chain: ChainEnum
-    label: str | None = None
+    label: str
 
 #get
 class Wallet(BaseModel):

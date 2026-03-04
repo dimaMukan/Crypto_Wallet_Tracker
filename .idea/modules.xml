@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Crypto_Wallet_Tracker.iml" filepath="$PROJECT_DIR$/.idea/Crypto_Wallet_Tracker.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../ToDo_Habit/.idea/ToDo_Habit.iml" filepath="$PROJECT_DIR$/../ToDo_Habit/.idea/ToDo_Habit.iml" />
     </modules>
   </component>
 </project>
