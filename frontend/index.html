@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Wallet Tracker - Simple UI</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --card: #ffffff;
+      --line: #d8d8d2;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --action: #0f766e;
+      --action-text: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(160deg, #f4f4ef 0%, #f8fbfa 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .row {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 8px;
+    }
+
+    .row.single {
+      grid-template-columns: 1fr;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 10px;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    button {
+      background: var(--action);
+      color: var(--action-text);
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
+    .output {
+      background: #0f172a;
+      color: #d1fae5;
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 220px;
+      white-space: pre-wrap;
+      overflow: auto;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+    }
+
+    .relation-card {
+      margin: 6px 0 14px;
+    }
+
+    .relation-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .relation-node {
+      background: #f3f4f6;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: #111827;
+      white-space: nowrap;
+    }
+
+    .relation-arrow {
+      position: relative;
+      flex: 1;
+      height: 2px;
+      background: #94a3b8;
+    }
+
+    .relation-arrow::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: -4px;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 8px solid #64748b;
+    }
+
+    .relation-status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <h1>Wallet + Transaction UI</h1>
+  <p>Simple page to call your existing API and inspect responses.</p>
+
+  <div class="grid">
+    <section class="card">
+      <h3>Wallet: GET all</h3>
+      <button onclick="listWallets()">GET /wallets/</button>
+    </section>
+
+    <section class="card">
+      <h3>Wallet: GET by id</h3>
+      <div class="row single">
+        <input id="walletGetId" type="number" placeholder="wallet_id" />
+      </div>
+      <button onclick="getWallet()">GET /wallets/{id}</button>
+    </section>
+
+    <section class="card">
+      <h3>Wallet: POST create</h3>
+      <div class="row">
+        <input id="walletAddress" placeholder="address" />
+        <select id="walletChain">
+          <option value="ethereum">ethereum</option>
+          <option value="solana">solana</option>
+          <option value="btc">btc</option>
+        </select>
+      </div>
+      <div class="row single">
+        <input id="walletLabel" placeholder="label" />
+      </div>
+      <button onclick="createWallet()">POST /wallets/</button>
+    </section>
+
+    <section class="card">
+      <h3>Wallet: PATCH update</h3>
+      <div class="row">
+        <input id="walletPatchId" type="number" placeholder="wallet_id" />
+        <select id="walletPatchChain">
+          <option value="">(skip chain)</option>
+          <option value="ethereum">ethereum</option>
+          <option value="solana">solana</option>
+          <option value="btc">btc</option>
+        </select>
+      </div>
+      <div class="row">
+        <input id="walletPatchAddress" placeholder="new address (optional)" />
+        <input id="walletPatchLabel" placeholder="new label (optional)" />
+      </div>
+      <button onclick="patchWallet()">PATCH /wallets/{id}</button>
+    </section>
+
+    <section class="card">
+      <h3>Wallet: DELETE</h3>
+      <div class="row single">
+        <input id="walletDeleteId" type="number" placeholder="wallet_id" />
+      </div>
+      <button onclick="deleteWallet()">DELETE /wallets/{id}</button>
+    </section>
+  </div>
+
+  <section class="card relation-card">
+    <h3>Connection Line: Wallet -> Transaction</h3>
+    <div class="relation-line">
+      <span class="relation-node">wallet.id</span>
+      <span class="relation-arrow"></span>
+      <span class="relation-node">transaction.wallet_id</span>
+    </div>
+    <div class="row">
+      <input id="linkWalletId" type="number" placeholder="wallet_id" />
+      <input id="linkTransactionId" type="number" placeholder="transaction_id" />
+    </div>
+    <button onclick="checkWalletTransactionLink()">Check Connection</button>
+    <div id="relationStatus" class="relation-status">Status: not checked.</div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h3>Transaction: GET all</h3>
+      <button onclick="listTransactions()">GET /transactions/</button>
+    </section>
+
+    <section class="card">
+      <h3>Transaction: GET by id</h3>
+      <div class="row single">
+        <input id="txGetId" type="number" placeholder="transaction_id" />
+      </div>
+      <button onclick="getTransaction()">GET /transactions/{id}</button>
+    </section>
+
+    <section class="card">
+      <h3>Transaction: POST create</h3>
+      <div class="row">
+        <input id="txHash" placeholder="hash" />
+        <input id="txWalletId" type="number" placeholder="wallet_id" />
+      </div>
+      <div class="row">
+        <input id="txFrom" placeholder="from_address" />
+        <input id="txTo" placeholder="to_address" />
+      </div>
+      <div class="row">
+        <input id="txValue" type="number" step="any" placeholder="value" />
+        <input id="txGas" type="number" step="any" placeholder="gas" />
+      </div>
+      <div class="row">
+        <input id="txGasPrice" type="number" step="any" placeholder="gas_price" />
+        <input id="txBlockNumber" type="number" placeholder="block_number" />
+      </div>
+      <div class="row single">
+        <input id="txTimestamp" placeholder="timestamp (optional, ISO)" />
+      </div>
+      <button onclick="createTransaction()">POST /transactions/</button>
+    </section>
+
+    <section class="card">
+      <h3>Transaction: PATCH update</h3>
+      <div class="row single">
+        <input id="txPatchId" type="number" placeholder="transaction_id" />
+      </div>
+      <div class="row single">
+        <textarea id="txPatchJson" placeholder='JSON body, e.g. {"value": 2.5, "gas_price": 55}'></textarea>
+      </div>
+      <button onclick="patchTransaction()">PATCH /transactions/{id}</button>
+    </section>
+
+    <section class="card">
+      <h3>Transaction: DELETE</h3>
+      <div class="row single">
+        <input id="txDeleteId" type="number" placeholder="transaction_id" />
+      </div>
+      <button onclick="deleteTransaction()">DELETE /transactions/{id}</button>
+    </section>
+  </div>
+
+  <section class="card">
+    <h3>Output</h3>
+    <div id="output" class="output">Ready.</div>
+    <div class="small">
+      Tip: You can keep this open and test wallet → transaction connection live.
+    </div>
+  </section>
+
+  <section class="card" style="margin-top: 14px;">
+    <h3>Custom Request (for new routes)</h3>
+    <div class="row">
+      <select id="customMethod">
+        <option>GET</option>
+        <option>POST</option>
+        <option>PATCH</option>
+        <option>DELETE</option>
+      </select>
+      <input id="customPath" placeholder="/some/new/route" />
+    </div>
+    <div class="row single">
+      <textarea id="customJson" placeholder='Optional JSON body, e.g. {"key":"value"}'></textarea>
+    </div>
+    <button onclick="sendCustomRequest()">Send Custom Request</button>
+  </section>
+
+  <script>
+    const out = document.getElementById("output");
+
+    function show(title, status, data) {
+      const block = {
+        title,
+        status,
+        data
+      };
+      out.textContent = JSON.stringify(block, null, 2);
+    }
+
+    async function request(method, path, body, title) {
+      try {
+        const opts = { method, headers: {} };
+        if (body !== undefined) {
+          opts.headers["Content-Type"] = "application/json";
+          opts.body = JSON.stringify(body);
+        }
+        const res = await fetch(path, opts);
+        const text = await res.text();
+        let payload = text;
+        try { payload = JSON.parse(text); } catch (_) {}
+        show(title, `${res.status} ${res.statusText}`, payload);
+      } catch (err) {
+        show(title, "CLIENT_ERROR", String(err));
+      }
+    }
+
+    function asNumber(value) {
+      if (value === "" || value === null || value === undefined) return undefined;
+      return Number(value);
+    }
+
+    function clean(obj) {
+      const result = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (v !== undefined && v !== "") result[k] = v;
+      }
+      return result;
+    }
+
+    function listWallets() {
+      request("GET", "/wallets/", undefined, "Wallet: GET all");
+    }
+
+    function getWallet() {
+      const id = document.getElementById("walletGetId").value;
+      request("GET", `/wallets/${id}`, undefined, "Wallet: GET by id");
+    }
+
+    function createWallet() {
+      const body = clean({
+        address: document.getElementById("walletAddress").value,
+        chain: document.getElementById("walletChain").value,
+        label: document.getElementById("walletLabel").value
+      });
+      request("POST", "/wallets/", body, "Wallet: POST create");
+    }
+
+    function patchWallet() {
+      const id = document.getElementById("walletPatchId").value;
+      const body = clean({
+        address: document.getElementById("walletPatchAddress").value,
+        chain: document.getElementById("walletPatchChain").value,
+        label: document.getElementById("walletPatchLabel").value
+      });
+      request("PATCH", `/wallets/${id}`, body, "Wallet: PATCH update");
+    }
+
+    function deleteWallet() {
+      const id = document.getElementById("walletDeleteId").value;
+      request("DELETE", `/wallets/${id}`, undefined, "Wallet: DELETE");
+    }
+
+    async function checkWalletTransactionLink() {
+      const walletId = asNumber(document.getElementById("linkWalletId").value);
+      const txId = asNumber(document.getElementById("linkTransactionId").value);
+      const relationStatus = document.getElementById("relationStatus");
+
+      if (!walletId || !txId) {
+        relationStatus.textContent = "Status: provide wallet_id and transaction_id.";
+        show("Connection Check", "VALIDATION", "wallet_id and transaction_id are required.");
+        return;
+      }
+
+      try {
+        const [walletRes, txRes] = await Promise.all([
+          fetch(`/wallets/${walletId}`),
+          fetch(`/transactions/${txId}`)
+        ]);
+
+        const walletText = await walletRes.text();
+        const txText = await txRes.text();
+
+        let walletData = walletText;
+        let txData = txText;
+        try { walletData = JSON.parse(walletText); } catch (_) {}
+        try { txData = JSON.parse(txText); } catch (_) {}
+
+        if (!walletRes.ok || !txRes.ok) {
+          relationStatus.textContent = "Status: wallet or transaction not found.";
+          show("Connection Check", "NOT_FOUND", { wallet: walletData, transaction: txData });
+          return;
+        }
+
+        const linked = Number(txData.wallet_id) === Number(walletId);
+        relationStatus.textContent = linked
+          ? "Status: connected (transaction.wallet_id matches wallet.id)."
+          : `Status: not connected (transaction.wallet_id=${txData.wallet_id}, wallet.id=${walletId}).`;
+
+        show("Connection Check", linked ? "CONNECTED" : "NOT_CONNECTED", {
+          wallet: walletData,
+          transaction: txData
+        });
+      } catch (err) {
+        relationStatus.textContent = "Status: client error.";
+        show("Connection Check", "CLIENT_ERROR", String(err));
+      }
+    }
+
+    function listTransactions() {
+      request("GET", "/transactions/", undefined, "Transaction: GET all");
+    }
+
+    function getTransaction() {
+      const id = document.getElementById("txGetId").value;
+      request("GET", `/transactions/${id}`, undefined, "Transaction: GET by id");
+    }
+
+    function createTransaction() {
+      const body = clean({
+        hash: document.getElementById("txHash").value,
+        wallet_id: asNumber(document.getElementById("txWalletId").value),
+        from_address: document.getElementById("txFrom").value,
+        to_address: document.getElementById("txTo").value,
+        value: asNumber(document.getElementById("txValue").value),
+        gas: asNumber(document.getElementById("txGas").value),
+        gas_price: asNumber(document.getElementById("txGasPrice").value),
+        block_number: asNumber(document.getElementById("txBlockNumber").value),
+        timestamp: document.getElementById("txTimestamp").value
+      });
+      request("POST", "/transactions/", body, "Transaction: POST create");
+    }
+
+    function patchTransaction() {
+      const id = document.getElementById("txPatchId").value;
+      const raw = document.getElementById("txPatchJson").value.trim();
+      if (!raw) {
+        show("Transaction: PATCH update", "VALIDATION", "Please provide JSON body.");
+        return;
+      }
+      try {
+        const body = JSON.parse(raw);
+        request("PATCH", `/transactions/${id}`, body, "Transaction: PATCH update");
+      } catch (err) {
+        show("Transaction: PATCH update", "VALIDATION", "Invalid JSON.");
+      }
+    }
+
+    function deleteTransaction() {
+      const id = document.getElementById("txDeleteId").value;
+      request("DELETE", `/transactions/${id}`, undefined, "Transaction: DELETE");
+    }
+
+    function sendCustomRequest() {
+      const method = document.getElementById("customMethod").value;
+      let path = document.getElementById("customPath").value.trim();
+      const raw = document.getElementById("customJson").value.trim();
+
+      if (!path) {
+        show("Custom Request", "VALIDATION", "Path is required.");
+        return;
+      }
+      if (!path.startsWith("/")) path = `/${path}`;
+
+      if (!raw) {
+        request(method, path, undefined, `Custom: ${method} ${path}`);
+        return;
+      }
+
+      try {
+        const body = JSON.parse(raw);
+        request(method, path, body, `Custom: ${method} ${path}`);
+      } catch (_) {
+        show("Custom Request", "VALIDATION", "Invalid JSON.");
+      }
+    }
+  </script>
+</body>
+</html>
