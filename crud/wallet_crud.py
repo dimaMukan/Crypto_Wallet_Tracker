@@ -2,6 +2,9 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from models.wallet_mod import Wallet
 from schemas.schema_wallet import WalletUpdate, WalletCreate
+from core.error_handler import raise_integrity_error
+from sqlalchemy.exc import IntegrityError
+
 
 
 def get_wallets(db: Session):
@@ -21,7 +24,11 @@ def update_wallet(db: Session, wallet: Wallet, wallet_update: WalletUpdate):
     updated_wallet = wallet_update.model_dump(exclude_unset=True)
     for key, value in updated_wallet.items():
         setattr(wallet, key, value)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise_integrity_error(error)
     db.refresh(wallet)
     return wallet
 
@@ -40,7 +47,11 @@ def add_wallet(db: Session, wallet_create: WalletCreate):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Wallet with this address already exists")
     db_wallet = Wallet(**wallet_create.model_dump(exclude_unset=True))
     db.add(db_wallet)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as error:
+        db.rollback()
+        raise_integrity_error(error)
     db.refresh(db_wallet)
     return db_wallet
 
