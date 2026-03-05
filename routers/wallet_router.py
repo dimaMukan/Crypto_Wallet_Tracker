@@ -1,9 +1,10 @@
 from models.wallet_mod import Wallet
-from schemas import schema_wallet
+from schemas import schema_wallet, transaction_schema
 from sqlalchemy.orm import Session
 from fastapi import Depends, APIRouter
 from db.database import get_db
 from crud.wallet_crud import update_wallet, get_wallet,add_wallet
+from crud.transaction_crud import get_wallet_transactions
 
 router = APIRouter(prefix="/wallets", tags=["wallets"])
 
@@ -33,4 +34,9 @@ def delete_wallet_router(wallet_id: int,db: Session = Depends(get_db)):
 @router.post("/", response_model=schema_wallet.Wallet)
 def add_wallet_router(wallet: schema_wallet.WalletCreate, db: Session = Depends(get_db)):
     return add_wallet(db, wallet)
+
+
+@router.get("/{wallet_id}/transactions", response_model=list[transaction_schema.Transaction])
+def get_wallet_transactions_router(wallet_id: int, db: Session = Depends(get_db)):
+    return get_wallet_transactions(db, wallet_id)
 

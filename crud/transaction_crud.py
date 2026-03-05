@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from schemas.transaction_schema import TransactionCreate, TransactionUpdate
 from models import Transaction as TransactionModel, Wallet as WalletModel
+from sqlalchemy.exc import IntegrityError
 
 
 def create_transaction(db: Session, transaction_create: TransactionCreate):
@@ -15,7 +16,13 @@ def create_transaction(db: Session, transaction_create: TransactionCreate):
 
     db_transaction = TransactionModel(**transaction_create.model_dump(exclude_unset=True))
     db.add(db_transaction)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if "UNIQUE constraint failed: transaction.hash" in str(exc.orig):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Transaction with this hash already exists")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Database integrity error")
     db.refresh(db_transaction)
     return db_transaction
 

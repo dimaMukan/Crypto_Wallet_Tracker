@@ -8,7 +8,7 @@ from db.base import Base
 from models import Wallet, Transaction
 
 app = FastAPI()
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 
 @app.get("/", include_in_schema=False)

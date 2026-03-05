@@ -172,6 +172,14 @@
     </section>
 
     <section class="card">
+      <h3>Wallet: GET transactions</h3>
+      <div class="row single">
+        <input id="walletTransactionsId" type="number" placeholder="wallet_id" />
+      </div>
+      <button onclick="getWalletTransactions()">GET /wallets/{id}/transactions</button>
+    </section>
+
+    <section class="card">
       <h3>Wallet: POST create</h3>
       <div class="row">
         <input id="walletAddress" placeholder="address" />
@@ -363,6 +371,11 @@
       request("GET", `/wallets/${id}`, undefined, "Wallet: GET by id");
     }
 
+    function getWalletTransactions() {
+      const id = document.getElementById("walletTransactionsId").value;
+      request("GET", `/wallets/${id}/transactions`, undefined, "Wallet: GET transactions");
+    }
+
     function createWallet() {
       const body = clean({
         address: document.getElementById("walletAddress").value,
@@ -442,7 +455,7 @@
       request("GET", `/transactions/${id}`, undefined, "Transaction: GET by id");
     }
 
-    function createTransaction() {
+    async function createTransaction() {
       const body = clean({
         hash: document.getElementById("txHash").value,
         wallet_id: asNumber(document.getElementById("txWalletId").value),
@@ -454,6 +467,36 @@
         block_number: asNumber(document.getElementById("txBlockNumber").value),
         timestamp: document.getElementById("txTimestamp").value
       });
+
+      if (!body.hash) {
+        show("Transaction: POST create", "VALIDATION", "hash is required.");
+        return;
+      }
+
+      try {
+        const checkRes = await fetch("/transactions/");
+        if (checkRes.ok) {
+          const checkText = await checkRes.text();
+          let transactions = [];
+          try {
+            transactions = JSON.parse(checkText);
+          } catch (_) {}
+
+          if (Array.isArray(transactions)) {
+            const duplicate = transactions.find((tx) => tx.hash === body.hash);
+            if (duplicate) {
+              show("Transaction: POST create", "409 CONFLICT", {
+                detail: "Transaction with this hash already exists",
+                existing_transaction: duplicate
+              });
+              return;
+            }
+          }
+        }
+      } catch (_) {
+        // If duplicate pre-check fails, still attempt normal POST.
+      }
+
       request("POST", "/transactions/", body, "Transaction: POST create");
     }
 
