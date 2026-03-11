@@ -6,7 +6,6 @@ from core.error_handler import raise_integrity_error
 from sqlalchemy.exc import IntegrityError
 
 
-
 def get_wallets(db: Session):
     wallets = db.query(Wallet).all()
     if not wallets:

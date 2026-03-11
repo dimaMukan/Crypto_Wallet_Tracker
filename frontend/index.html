@@ -108,6 +108,24 @@
       margin-top: 6px;
     }
 
+    .holders-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .holders-table th,
+    .holders-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 6px;
+      text-align: left;
+    }
+
+    .holders-empty {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     .relation-card {
       margin: 6px 0 14px;
     }
@@ -239,6 +257,27 @@
 
   <div class="grid">
     <section class="card">
+      <h3>Holders: GET top</h3>
+      <div class="row single">
+        <input id="holdersLimit" type="number" value="10" min="1" max="100" placeholder="limit" />
+      </div>
+      <button onclick="listTopHolders()">GET /holders/top?limit=...</button>
+    </section>
+
+    <section class="card">
+      <h3>Holders: Sync from Dune</h3>
+      <button onclick="syncTopHolders()">POST /holders/sync-top</button>
+      <div class="small">Runs sync and updates top holders in DB.</div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h3>Holders Preview</h3>
+    <div id="holdersView" class="holders-empty">No holders loaded yet.</div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
       <h3>Transaction: GET all</h3>
       <button onclick="listTransactions()">GET /transactions/</button>
     </section>
@@ -344,8 +383,10 @@
         let payload = text;
         try { payload = JSON.parse(text); } catch (_) {}
         show(title, `${res.status} ${res.statusText}`, payload);
+        return { ok: res.ok, status: res.status, payload };
       } catch (err) {
         show(title, "CLIENT_ERROR", String(err));
+        return { ok: false, status: 0, payload: String(err) };
       }
     }
 
@@ -364,6 +405,62 @@
 
     function listWallets() {
       request("GET", "/wallets/", undefined, "Wallet: GET all");
+    }
+
+    function weiToEth(wei) {
+      const n = Number(wei);
+      if (!Number.isFinite(n)) return String(wei);
+      return (n / 1e18).toFixed(6);
+    }
+
+    function renderHolders(rows) {
+      const node = document.getElementById("holdersView");
+      if (!Array.isArray(rows) || rows.length === 0) {
+        node.className = "holders-empty";
+        node.textContent = "No holders found.";
+        return;
+      }
+
+      const lines = rows.map((h) => `
+        <tr>
+          <td>${h.rank}</td>
+          <td>${h.address}</td>
+          <td>${h.balance_wei}</td>
+          <td>${weiToEth(h.balance_wei)}</td>
+          <td>${h.is_active}</td>
+        </tr>
+      `).join("");
+
+      node.className = "";
+      node.innerHTML = `
+        <table class="holders-table">
+          <thead>
+            <tr>
+              <th>rank</th>
+              <th>address</th>
+              <th>balance_wei</th>
+              <th>balance_eth</th>
+              <th>active</th>
+            </tr>
+          </thead>
+          <tbody>${lines}</tbody>
+        </table>
+      `;
+    }
+
+    async function listTopHolders() {
+      const limit = asNumber(document.getElementById("holdersLimit").value) || 10;
+      const result = await request("GET", `/holders/top?limit=${limit}`, undefined, "Holders: GET top");
+      if (result.ok && Array.isArray(result.payload)) {
+        renderHolders(result.payload);
+      }
+    }
+
+    async function syncTopHolders() {
+      const result = await request("POST", "/holders/sync-top", undefined, "Holders: POST sync-top");
+      if (result.ok && Array.isArray(result.payload)) {
+        renderHolders(result.payload);
+      }
     }
 
     function getWallet() {
@@ -518,6 +615,8 @@
         show("Custom Request", "VALIDATION", "Invalid JSON.");
       }
     }
+
+    listTopHolders();
   </script>
 </body>
 </html>
