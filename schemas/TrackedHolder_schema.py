@@ -5,7 +5,7 @@ class TrackedHolderOut(BaseModel):
     id: int
     address: str
     rank: int
-    balance_wei: str
+    balance_raw: str
     source: str
     is_active: bool
     created_at: datetime

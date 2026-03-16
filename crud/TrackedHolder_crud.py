@@ -12,20 +12,20 @@ def upsert_top_holders(db: Session, rows: list[dict]) -> list[TrackedHolder]:
     for row in rows[:10]:
         address = str(row["address"]).lower()
         rank = int(row["rank"])
-        balance_wei = str(row["balance_wei"])
+        balance_raw = str(row["balance_raw"])
         seen.add(address)
 
         holder = db.query(TrackedHolder).filter(TrackedHolder.address == address).first()
         if holder:
             holder.rank = rank
-            holder.balance_wei = balance_wei
+            holder.balance_raw = balance_raw
             holder.is_active = True
             holder.source = "dune"
         else:
             holder = TrackedHolder(
                 address=address,
                 rank=rank,
-                balance_wei=balance_wei,
+                balance_raw=balance_raw,
                 source="dune",
                 is_active=True,
             )
@@ -40,7 +40,6 @@ def upsert_top_holders(db: Session, rows: list[dict]) -> list[TrackedHolder]:
     for holder in touched:
         db.refresh(holder)
     return touched
-
 
 
 

@@ -26,9 +26,9 @@ def sync_top_holders_router(db: Session = Depends(get_db)):
     except (RequestException, TimeoutError, RuntimeError, KeyError, ValueError) as e:
         raise HTTPException(status_code=502, detail=f"Dune API error: {e}")
 
-    required = {"address", "rank", "balance_wei"}
+    required = {"address", "rank", "balance_raw"}
     for row in rows[:10]:
         if not required.issubset(row.keys()):
-            raise HTTPException(status_code=500, detail="Dune query must return address, rank, balance_wei")
+            raise HTTPException(status_code=500, detail="Dune query must return address, rank, balance_raw")
     upsert_top_holders(db, rows)
     return get_top_holders(db, limit=10)

@@ -257,7 +257,7 @@
 
   <div class="grid">
     <section class="card">
-      <h3>Holders: GET top</h3>
+      <h3>USDC Holders: GET top</h3>
       <div class="row single">
         <input id="holdersLimit" type="number" value="10" min="1" max="100" placeholder="limit" />
       </div>
@@ -265,15 +265,15 @@
     </section>
 
     <section class="card">
-      <h3>Holders: Sync from Dune</h3>
-      <button onclick="syncTopHolders()">POST /holders/sync-top</button>
-      <div class="small">Runs sync and updates top holders in DB.</div>
+      <h3>USDC Holders: Sync from Dune</h3>
+      <button id="holdersSyncButton" onclick="syncTopHolders()">POST /holders/sync-top</button>
+      <div id="holdersSyncHint" class="small">Runs sync and updates top USDC holders in DB.</div>
     </section>
   </div>
 
   <section class="card">
-    <h3>Holders Preview</h3>
-    <div id="holdersView" class="holders-empty">No holders loaded yet.</div>
+    <h3>USDC Holders Preview</h3>
+    <div id="holdersView" class="holders-empty">No USDC holders loaded yet.</div>
   </section>
 
   <div class="grid">
@@ -361,6 +361,10 @@
 
   <script>
     const out = document.getElementById("output");
+    const holdersSyncButton = document.getElementById("holdersSyncButton");
+    const holdersSyncHint = document.getElementById("holdersSyncHint");
+    let holdersSyncCooldownTimer = null;
+    let holdersSyncCooldownUntil = 0;
 
     function show(title, status, data) {
       const block = {
@@ -395,6 +399,36 @@
       return Number(value);
     }
 
+    function updateHoldersSyncCooldownUI() {
+      const now = Date.now();
+      const remainingMs = holdersSyncCooldownUntil - now;
+
+      if (remainingMs <= 0) {
+        holdersSyncButton.disabled = false;
+        holdersSyncButton.textContent = "POST /holders/sync-top";
+        holdersSyncHint.textContent = "Runs sync and updates top USDC holders in DB.";
+        if (holdersSyncCooldownTimer) {
+          clearInterval(holdersSyncCooldownTimer);
+          holdersSyncCooldownTimer = null;
+        }
+        return;
+      }
+
+      const remainingSec = Math.ceil(remainingMs / 1000);
+      holdersSyncButton.disabled = true;
+      holdersSyncButton.textContent = `Cooldown: ${remainingSec}s`;
+      holdersSyncHint.textContent = `Please wait ${remainingSec}s before the next Dune USDC sync.`;
+    }
+
+    function startHoldersSyncCooldown(seconds = 60) {
+      holdersSyncCooldownUntil = Date.now() + seconds * 1000;
+      updateHoldersSyncCooldownUI();
+      if (holdersSyncCooldownTimer) {
+        clearInterval(holdersSyncCooldownTimer);
+      }
+      holdersSyncCooldownTimer = setInterval(updateHoldersSyncCooldownUI, 1000);
+    }
+
     function clean(obj) {
       const result = {};
       for (const [k, v] of Object.entries(obj)) {
@@ -407,17 +441,17 @@
       request("GET", "/wallets/", undefined, "Wallet: GET all");
     }
 
-    function weiToEth(wei) {
-      const n = Number(wei);
-      if (!Number.isFinite(n)) return String(wei);
-      return (n / 1e18).toFixed(6);
+    function rawToUsdc(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return String(raw);
+      return (n / 1e6).toFixed(6);
     }
 
     function renderHolders(rows) {
       const node = document.getElementById("holdersView");
       if (!Array.isArray(rows) || rows.length === 0) {
         node.className = "holders-empty";
-        node.textContent = "No holders found.";
+        node.textContent = "No USDC holders found.";
         return;
       }
 
@@ -425,8 +459,8 @@
         <tr>
           <td>${h.rank}</td>
           <td>${h.address}</td>
-          <td>${h.balance_wei}</td>
-          <td>${weiToEth(h.balance_wei)}</td>
+          <td>${h.balance_raw}</td>
+          <td>${rawToUsdc(h.balance_raw)}</td>
           <td>${h.is_active}</td>
         </tr>
       `).join("");
@@ -438,8 +472,8 @@
             <tr>
               <th>rank</th>
               <th>address</th>
-              <th>balance_wei</th>
-              <th>balance_eth</th>
+              <th>balance_raw</th>
+              <th>balance_usdc</th>
               <th>active</th>
             </tr>
           </thead>
@@ -450,14 +484,16 @@
 
     async function listTopHolders() {
       const limit = asNumber(document.getElementById("holdersLimit").value) || 10;
-      const result = await request("GET", `/holders/top?limit=${limit}`, undefined, "Holders: GET top");
+      const result = await request("GET", `/holders/top?limit=${limit}`, undefined, "USDC Holders: GET top");
       if (result.ok && Array.isArray(result.payload)) {
         renderHolders(result.payload);
       }
     }
 
     async function syncTopHolders() {
-      const result = await request("POST", "/holders/sync-top", undefined, "Holders: POST sync-top");
+      if (holdersSyncButton.disabled) return;
+      startHoldersSyncCooldown(60);
+      const result = await request("POST", "/holders/sync-top", undefined, "USDC Holders: POST sync-top");
       if (result.ok && Array.isArray(result.payload)) {
         renderHolders(result.payload);
       }
