@@ -6,15 +6,25 @@ class HolderTransactionEvent(Base):
     id = Column(Integer, primary_key=True, index=True)
     holder_id = Column(Integer, ForeignKey("TrackedHolder.id"), nullable=False, index=True)
     transaction_hash = Column(String, nullable=False, index=True)
-    direction = Column(String, nullable=False)  # IN / OUT
-    from_address = Column(String, nullable=False)
-    to_address = Column(String, nullable=True)
-    value_wei = Column(String, nullable=False)
+    direction = Column(String, nullable=False)  # IN / OUT / SELF
+    from_address = Column(String, nullable=False, index=True)
+    to_address = Column(String, nullable=True, index=True)
     block_number = Column(Integer, nullable=False, index=True)
     block_timestamp = Column(DateTime, nullable=False)
-    notified_at = Column(DateTime, nullable=True)
+    value_raw = Column(String, nullable=False)
+    token_symbol = Column(String, nullable=False, default="USDC")
+    token_decimals = Column(Integer, nullable=False, default=6)
+    contract_address = Column(String, nullable=False)
+    source = Column(String, nullable=False, default="etherscan")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    __table_args__ = (
-        UniqueConstraint("holder_id", "transaction_hash", name="uq_holder_transaction_hash"),
 
+    __table_args__ = (
+        UniqueConstraint(
+            "holder_id",
+            "transaction_hash",
+            "from_address",
+            "to_address",
+            "value_raw",
+            name="uq_holder_transfer_event",
+        ),
     )
