@@ -24,30 +24,48 @@ def dto_to_event(holder_id: int, dto) -> HolderTransactionEvent:
 db = SessionLocal()
 
 try:
-    holder = (
+    holders = (
         db.query(TrackedHolder)
-        .filter(
-            TrackedHolder.rank == 1,
-            TrackedHolder.is_active == True,
-        )
-        .first()
+        .filter(TrackedHolder.is_active == True)
+        .order_by(TrackedHolder.rank.asc())
+        .all()
     )
 
-    if not holder:
+    if not holders:
         raise RuntimeError("No active tracked holder found")
 
-    print("Using holder:", holder.address)
+    print("Holders count:", len(holders))
 
     client = EtherscanClient()
 #here we need to add a cursor
-    rows = client.get_usdc_transfers(holder.address, offset=10)
+    for holder in holders:
+        print(f"\nProcessing holder: {holder.address}")
 
-    for row in rows:
-        dto = parse_usdc_transfer(row, holder.address)
-        event = dto_to_event(holder.id, dto)
+        rows = client.get_usdc_transfers(holder.address,startblock=..., offset=10)
 
-        print("DTO:", dto)
-        print("EVENT:", event.transaction_hash, event.value_raw, event.direction, event.token_symbol)
+        for row in rows:
+            dto = parse_usdc_transfer(row, holder.address)
+            existing_event = (
+                db.query(HolderTransactionEvent)
+                .filter(
+                    HolderTransactionEvent.holder_id == holder.id,
+                    HolderTransactionEvent.transaction_hash == dto.transaction_hash,
+                    HolderTransactionEvent.from_address == dto.from_address,
+                    HolderTransactionEvent.to_address == dto.to_address,
+                    HolderTransactionEvent.value_raw == dto.value_raw,
+                )
+                .first()
+            )
+
+            if existing_event:
+                continue
+
+            event = dto_to_event(holder.id, dto)
+            db.add(event)
+
+            print("DTO:", dto)
+            print("EVENT:", event.transaction_hash, event.value_raw, event.direction, event.token_symbol)
+        db.commit()
 
 finally:
     db.close()
