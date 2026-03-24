@@ -1,8 +1,23 @@
 from sqlalchemy.orm import Session
-from models import TrackedHolder
+from models import TrackedHolder, HolderTransactionEvent
 
 def get_top_holders(db:Session, limit: int = 10) -> list[TrackedHolder]:
     return db.query(TrackedHolder).filter(TrackedHolder.is_active == True).order_by(TrackedHolder.rank.asc()).limit(limit).all()
+
+
+def get_holder_by_id(db: Session, holder_id: int) -> TrackedHolder | None:
+    return db.query(TrackedHolder).filter(TrackedHolder.id == holder_id).first()
+
+
+def get_holder_events(db: Session, holder_id: int, limit: int | None = 100) -> list[HolderTransactionEvent]:
+    query = (
+        db.query(HolderTransactionEvent)
+        .filter(HolderTransactionEvent.holder_id == holder_id)
+        .order_by(HolderTransactionEvent.block_number.desc(), HolderTransactionEvent.id.desc())
+    )
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 
 def upsert_top_holders(db: Session, rows: list[dict]) -> list[TrackedHolder]:
@@ -40,7 +55,5 @@ def upsert_top_holders(db: Session, rows: list[dict]) -> list[TrackedHolder]:
     for holder in touched:
         db.refresh(holder)
     return touched
-
-
 
 

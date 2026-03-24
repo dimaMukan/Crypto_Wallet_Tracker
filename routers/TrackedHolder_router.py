@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.settings import settings
 from core.dune_client import DuneClient
-from crud.TrackedHolder_crud import get_top_holders, upsert_top_holders
+from crud.TrackedHolder_crud import get_top_holders, upsert_top_holders, get_holder_events, get_holder_by_id
 from db.database import get_db
 from schemas.TrackedHolder_schema import TrackedHolderOut
+from schemas.HolderTransactionEvent_schema import HolderTransactionEventOut
 from requests.exceptions import RequestException
 
 
@@ -32,3 +33,19 @@ def sync_top_holders_router(db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail="Dune query must return address, rank, balance_raw")
     upsert_top_holders(db, rows)
     return get_top_holders(db, limit=10)
+
+
+@router.get("/{holder_id}", response_model=TrackedHolderOut)
+def get_holder_router(holder_id: int, db: Session = Depends(get_db)):
+    holder = get_holder_by_id(db, holder_id)
+    if not holder:
+        raise HTTPException(status_code=404, detail="Holder not found")
+    return holder
+
+
+@router.get("/{holder_id}/events", response_model=list[HolderTransactionEventOut])
+def get_holder_events_router(holder_id: int, limit: int | None = None, db: Session = Depends(get_db)):
+    holder = get_holder_by_id(db, holder_id)
+    if not holder:
+        raise HTTPException(status_code=404, detail="Holder not found")
+    return get_holder_events(db, holder_id=holder_id, limit=limit)

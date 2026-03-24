@@ -108,6 +108,43 @@
       margin-top: 6px;
     }
 
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .menu {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    .menu button {
+      width: auto;
+      padding: 10px 16px;
+      background: #e8f1ef;
+      color: #0f766e;
+      border: 1px solid #cddad7;
+    }
+
+    .menu button.active {
+      background: var(--action);
+      color: var(--action-text);
+      border-color: var(--action);
+    }
+
+    .page-section {
+      display: none;
+    }
+
+    .page-section.is-active {
+      display: block;
+    }
+
     .holders-table {
       width: 100%;
       border-collapse: collapse;
@@ -124,6 +161,58 @@
     .holders-empty {
       color: var(--muted);
       font-size: 13px;
+    }
+
+    .holders-link {
+      color: var(--action);
+      cursor: pointer;
+      text-decoration: underline;
+      word-break: break-all;
+    }
+
+    .events-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .events-table th,
+    .events-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .detail-item {
+      background: #f8faf9;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .detail-item strong {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .secondary-button {
+      width: auto;
+      background: #e8f1ef;
+      color: #0f766e;
+      border: 1px solid #cddad7;
+      margin-bottom: 12px;
     }
 
     .relation-card {
@@ -172,9 +261,19 @@
   </style>
 </head>
 <body>
-  <h1>Wallet + Transaction UI</h1>
-  <p>Simple page to call your existing API and inspect responses.</p>
+  <div class="topbar">
+    <div>
+      <h1>Crypto Wallet Tracker</h1>
+      <p>Wallet practice and USDC holders monitoring in one place.</p>
+    </div>
+  </div>
 
+  <nav class="menu">
+    <button id="navPractice" onclick="goToPracticePage()">Practice</button>
+    <button id="navHolders" onclick="goToHoldersPage()">USDC Holders</button>
+  </nav>
+
+  <div id="practicePage" class="page-section">
   <div class="grid">
     <section class="card">
       <h3>Wallet: GET all</h3>
@@ -253,27 +352,6 @@
     </div>
     <button onclick="checkWalletTransactionLink()">Check Connection</button>
     <div id="relationStatus" class="relation-status">Status: not checked.</div>
-  </section>
-
-  <div class="grid">
-    <section class="card">
-      <h3>USDC Holders: GET top</h3>
-      <div class="row single">
-        <input id="holdersLimit" type="number" value="10" min="1" max="100" placeholder="limit" />
-      </div>
-      <button onclick="listTopHolders()">GET /holders/top?limit=...</button>
-    </section>
-
-    <section class="card">
-      <h3>USDC Holders: Sync from Dune</h3>
-      <button id="holdersSyncButton" onclick="syncTopHolders()">POST /holders/sync-top</button>
-      <div id="holdersSyncHint" class="small">Runs sync and updates top USDC holders in DB.</div>
-    </section>
-  </div>
-
-  <section class="card">
-    <h3>USDC Holders Preview</h3>
-    <div id="holdersView" class="holders-empty">No USDC holders loaded yet.</div>
   </section>
 
   <div class="grid">
@@ -358,13 +436,56 @@
     </div>
     <button onclick="sendCustomRequest()">Send Custom Request</button>
   </section>
+  </div>
+
+  <div id="holdersPage" class="page-section">
+  <div class="grid">
+    <section class="card">
+      <h3>USDC Holders: GET top</h3>
+      <div class="row single">
+        <input id="holdersLimit" type="number" value="10" min="1" max="100" placeholder="limit" />
+      </div>
+      <button onclick="listTopHolders()">GET /holders/top?limit=...</button>
+    </section>
+
+    <section class="card">
+      <h3>USDC Holders: Sync from Dune</h3>
+      <button id="holdersSyncButton" onclick="syncTopHolders()">POST /holders/sync-top</button>
+      <div id="holdersSyncHint" class="small">Runs sync and updates top USDC holders in DB.</div>
+    </section>
+  </div>
+
+  <section class="card">
+    <h3>USDC Holders Preview</h3>
+    <div id="holdersView" class="holders-empty">No USDC holders loaded yet.</div>
+  </section>
+  </div>
+
+  <div id="holderDetailPage" class="page-section">
+    <section class="card">
+      <button class="secondary-button" onclick="goToHoldersPage()">Back To Holders</button>
+      <h3>Holder Transactions</h3>
+      <div id="holderDetailMeta" class="detail-grid"></div>
+      <div id="holderEventsMeta" class="small">Loading holder details...</div>
+      <div id="holderEventsView" class="holders-empty">No holder events loaded yet.</div>
+    </section>
+  </div>
 
   <script>
     const out = document.getElementById("output");
+    const navPractice = document.getElementById("navPractice");
+    const navHolders = document.getElementById("navHolders");
+    const practicePage = document.getElementById("practicePage");
+    const holdersPage = document.getElementById("holdersPage");
+    const holderDetailPage = document.getElementById("holderDetailPage");
     const holdersSyncButton = document.getElementById("holdersSyncButton");
     const holdersSyncHint = document.getElementById("holdersSyncHint");
+    const holderDetailMeta = document.getElementById("holderDetailMeta");
+    const holderEventsMeta = document.getElementById("holderEventsMeta");
+    const holderEventsView = document.getElementById("holderEventsView");
     let holdersSyncCooldownTimer = null;
     let holdersSyncCooldownUntil = 0;
+    const holdersCache = new Map();
 
     function show(title, status, data) {
       const block = {
@@ -447,6 +568,55 @@
       return (n / 1e6).toFixed(6);
     }
 
+    function shortHash(value, left = 10, right = 6) {
+      if (!value || value.length <= left + right + 3) return value || "";
+      return `${value.slice(0, left)}...${value.slice(-right)}`;
+    }
+
+    function setActivePage(page) {
+      practicePage.classList.toggle("is-active", page === "practice");
+      holdersPage.classList.toggle("is-active", page === "holders");
+      holderDetailPage.classList.toggle("is-active", page === "holder-detail");
+
+      navPractice.classList.toggle("active", page === "practice");
+      navHolders.classList.toggle("active", page === "holders" || page === "holder-detail");
+    }
+
+    function goToPracticePage() {
+      window.location.hash = "#/practice";
+    }
+
+    function goToHoldersPage() {
+      window.location.hash = "#/holders";
+    }
+
+    function goToHolderDetailPage(holderId) {
+      window.location.hash = `#/holders/${holderId}`;
+    }
+
+    async function handleRoute() {
+      const hash = window.location.hash || "#/practice";
+
+      if (hash === "#/holders") {
+        setActivePage("holders");
+        await listTopHolders();
+        return;
+      }
+
+      if (hash.startsWith("#/holders/")) {
+        const holderId = Number(hash.split("/")[2]);
+        if (!Number.isFinite(holderId)) {
+          goToHoldersPage();
+          return;
+        }
+        setActivePage("holder-detail");
+        await loadHolderDetailPage(holderId);
+        return;
+      }
+
+      setActivePage("practice");
+    }
+
     function renderHolders(rows) {
       const node = document.getElementById("holdersView");
       if (!Array.isArray(rows) || rows.length === 0) {
@@ -455,10 +625,17 @@
         return;
       }
 
+      holdersCache.clear();
+      rows.forEach((holder) => holdersCache.set(holder.id, holder));
+
       const lines = rows.map((h) => `
         <tr>
           <td>${h.rank}</td>
-          <td>${h.address}</td>
+          <td>
+            <span class="holders-link" onclick="goToHolderDetailPage(${h.id})">
+              ${h.address}
+            </span>
+          </td>
           <td>${h.balance_raw}</td>
           <td>${rawToUsdc(h.balance_raw)}</td>
           <td>${h.is_active}</td>
@@ -482,11 +659,121 @@
       `;
     }
 
+    function renderHolderDetail(holder) {
+      if (!holder) {
+        holderDetailMeta.innerHTML = '<div class="holders-empty">Holder details are not available.</div>';
+        return;
+      }
+
+      holderDetailMeta.innerHTML = `
+        <div class="detail-item">
+          <strong>Holder Number</strong>
+          <div>#${holder.id}</div>
+        </div>
+        <div class="detail-item">
+          <strong>Rank</strong>
+          <div>#${holder.rank}</div>
+        </div>
+        <div class="detail-item">
+          <strong>Address</strong>
+          <div>${holder.address}</div>
+        </div>
+        <div class="detail-item">
+          <strong>Balance</strong>
+          <div>${rawToUsdc(holder.balance_raw)} USDC</div>
+        </div>
+        <div class="detail-item">
+          <strong>Raw Balance</strong>
+          <div>${holder.balance_raw}</div>
+        </div>
+        <div class="detail-item">
+          <strong>Source</strong>
+          <div>${holder.source}</div>
+        </div>
+      `;
+    }
+
+    function renderHolderEvents(holder, rows) {
+      const holderId = holder?.id ?? "";
+      const holderAddress = holder?.address ?? "";
+      if (!Array.isArray(rows) || rows.length === 0) {
+        holderEventsMeta.textContent = `Holder #${holderId} ${holderAddress} has no saved USDC events yet.`;
+        holderEventsView.className = "holders-empty";
+        holderEventsView.textContent = "No holder events found.";
+        return;
+      }
+
+      holderEventsMeta.textContent = `Showing ${rows.length} saved events for holder #${holderId} ${holderAddress}.`;
+      holderEventsView.className = "";
+
+      const lines = rows.map((event) => `
+        <tr>
+          <td>${event.block_number}</td>
+          <td>${event.direction}</td>
+          <td>${rawToUsdc(event.value_raw)}</td>
+          <td title="${event.transaction_hash}">${shortHash(event.transaction_hash)}</td>
+          <td title="${event.from_address}">${shortHash(event.from_address, 12, 6)}</td>
+          <td title="${event.to_address || ""}">${shortHash(event.to_address || "", 12, 6)}</td>
+          <td>${event.block_timestamp}</td>
+        </tr>
+      `).join("");
+
+      holderEventsView.innerHTML = `
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>block</th>
+              <th>direction</th>
+              <th>amount_usdc</th>
+              <th>tx_hash</th>
+              <th>from</th>
+              <th>to</th>
+              <th>timestamp</th>
+            </tr>
+          </thead>
+          <tbody>${lines}</tbody>
+        </table>
+      `;
+    }
+
     async function listTopHolders() {
       const limit = asNumber(document.getElementById("holdersLimit").value) || 10;
       const result = await request("GET", `/holders/top?limit=${limit}`, undefined, "USDC Holders: GET top");
       if (result.ok && Array.isArray(result.payload)) {
         renderHolders(result.payload);
+      }
+      return result;
+    }
+
+    async function loadHolderDetailPage(holderId) {
+      const cachedHolder = holdersCache.get(holderId);
+      if (cachedHolder) {
+        renderHolderDetail(cachedHolder);
+      } else {
+        holderDetailMeta.innerHTML = '<div class="holders-empty">Loading holder details...</div>';
+      }
+      holderEventsMeta.textContent = "Loading holder transactions...";
+      holderEventsView.className = "holders-empty";
+      holderEventsView.textContent = "Loading...";
+
+      const [holderResult, eventsResult] = await Promise.all([
+        request("GET", `/holders/${holderId}`, undefined, `USDC Holder: GET /holders/${holderId}`),
+        request("GET", `/holders/${holderId}/events`, undefined, `USDC Holder Events: GET /holders/${holderId}/events`),
+      ]);
+
+      if (holderResult.ok && holderResult.payload) {
+        holdersCache.set(holderId, holderResult.payload);
+        renderHolderDetail(holderResult.payload);
+      } else {
+        holderDetailMeta.innerHTML = '<div class="holders-empty">Unable to load holder details.</div>';
+      }
+
+      if (eventsResult.ok && Array.isArray(eventsResult.payload)) {
+        renderHolderEvents(holderResult.payload || cachedHolder, eventsResult.payload);
+      } else {
+        holderEventsMeta.textContent = `Unable to load events for holder #${holderId}.`;
+        holderEventsView.className = "holders-empty";
+        holderEventsView.textContent = "No holder events found.";
       }
     }
 
@@ -652,7 +939,8 @@
       }
     }
 
-    listTopHolders();
+    window.addEventListener("hashchange", handleRoute);
+    handleRoute();
   </script>
 </body>
 </html>
