@@ -453,6 +453,16 @@
       <button id="holdersSyncButton" onclick="syncTopHolders()">POST /holders/sync-top</button>
       <div id="holdersSyncHint" class="small">Runs sync and updates top USDC holders in DB.</div>
     </section>
+
+    <section class="card">
+      <h3>USDC Transactions: Sync active holders</h3>
+      <button id="holderTxSyncAllButton" onclick="syncAllHolderTransactions()">
+        POST /holders/sync-transactions
+      </button>
+      <div id="holderTxSyncAllHint" class="small">
+        Fetches latest and new USDC transactions for all active holders.
+      </div>
+    </section>
   </div>
 
   <section class="card">
@@ -464,6 +474,16 @@
   <div id="holderDetailPage" class="page-section">
     <section class="card">
       <button class="secondary-button" onclick="goToHoldersPage()">Back To Holders</button>
+      <button
+        id="holderTxSyncOneButton"
+        class="secondary-button"
+        onclick="syncCurrentHolderTransactions()"
+      >
+        Sync This Holder
+      </button>
+      <div id="holderTxSyncOneHint" class="small">
+        Fetches latest and new USDC transactions for this holder.
+      </div>
       <h3>Holder Transactions</h3>
       <div id="holderDetailMeta" class="detail-grid"></div>
       <div id="holderEventsMeta" class="small">Loading holder details...</div>
@@ -480,12 +500,17 @@
     const holderDetailPage = document.getElementById("holderDetailPage");
     const holdersSyncButton = document.getElementById("holdersSyncButton");
     const holdersSyncHint = document.getElementById("holdersSyncHint");
+    const holderTxSyncAllButton = document.getElementById("holderTxSyncAllButton");
+    const holderTxSyncAllHint = document.getElementById("holderTxSyncAllHint");
+    const holderTxSyncOneButton = document.getElementById("holderTxSyncOneButton");
+    const holderTxSyncOneHint = document.getElementById("holderTxSyncOneHint");
     const holderDetailMeta = document.getElementById("holderDetailMeta");
     const holderEventsMeta = document.getElementById("holderEventsMeta");
     const holderEventsView = document.getElementById("holderEventsView");
     let holdersSyncCooldownTimer = null;
     let holdersSyncCooldownUntil = 0;
     const holdersCache = new Map();
+    let currentHolderId = null;
 
     function show(title, status, data) {
       const block = {
@@ -571,6 +596,12 @@
     function shortHash(value, left = 10, right = 6) {
       if (!value || value.length <= left + right + 3) return value || "";
       return `${value.slice(0, left)}...${value.slice(-right)}`;
+    }
+
+    function formatHolderSyncSummary(summary) {
+      if (!summary) return "No summary returned.";
+      const errorsCount = Array.isArray(summary.errors) ? summary.errors.length : 0;
+      return `holders=${summary.holders_processed}, added=${summary.events_added}, duplicates=${summary.duplicates_skipped}, errors=${errorsCount}`;
     }
 
     function setActivePage(page) {
@@ -746,6 +777,7 @@
     }
 
     async function loadHolderDetailPage(holderId) {
+      currentHolderId = holderId;
       const cachedHolder = holdersCache.get(holderId);
       if (cachedHolder) {
         renderHolderDetail(cachedHolder);
@@ -783,6 +815,63 @@
       const result = await request("POST", "/holders/sync-top", undefined, "USDC Holders: POST sync-top");
       if (result.ok && Array.isArray(result.payload)) {
         renderHolders(result.payload);
+      }
+    }
+
+    async function syncAllHolderTransactions() {
+      if (holderTxSyncAllButton) holderTxSyncAllButton.disabled = true;
+      if (holderTxSyncAllHint) holderTxSyncAllHint.textContent = "Sync is running...";
+
+      const result = await request(
+        "POST",
+        "/holders/sync-transactions",
+        undefined,
+        "USDC Holders: POST sync-transactions"
+      );
+
+      if (holderTxSyncAllButton) holderTxSyncAllButton.disabled = false;
+
+      if (result.ok && result.payload) {
+        if (holderTxSyncAllHint) {
+          holderTxSyncAllHint.textContent = formatHolderSyncSummary(result.payload);
+        }
+        await listTopHolders();
+        if (currentHolderId) {
+          await loadHolderDetailPage(currentHolderId);
+        }
+        return;
+      }
+
+      if (holderTxSyncAllHint) {
+        holderTxSyncAllHint.textContent = "Sync failed.";
+      }
+    }
+
+    async function syncCurrentHolderTransactions() {
+      if (!currentHolderId) return;
+
+      if (holderTxSyncOneButton) holderTxSyncOneButton.disabled = true;
+      if (holderTxSyncOneHint) holderTxSyncOneHint.textContent = "Sync is running...";
+
+      const result = await request(
+        "POST",
+        `/holders/${currentHolderId}/sync-transactions`,
+        undefined,
+        `USDC Holder: POST /holders/${currentHolderId}/sync-transactions`
+      );
+
+      if (holderTxSyncOneButton) holderTxSyncOneButton.disabled = false;
+
+      if (result.ok && result.payload) {
+        if (holderTxSyncOneHint) {
+          holderTxSyncOneHint.textContent = formatHolderSyncSummary(result.payload);
+        }
+        await loadHolderDetailPage(currentHolderId);
+        return;
+      }
+
+      if (holderTxSyncOneHint) {
+        holderTxSyncOneHint.textContent = "Sync failed.";
       }
     }
 

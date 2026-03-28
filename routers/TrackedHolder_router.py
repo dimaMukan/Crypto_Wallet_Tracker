@@ -7,10 +7,27 @@ from db.database import get_db
 from schemas.TrackedHolder_schema import TrackedHolderOut
 from schemas.HolderTransactionEvent_schema import HolderTransactionEventOut
 from requests.exceptions import RequestException
+from services.holder_transaction_sync_service import sync_all_active_holder_transactions, sync_one_holder_transactions
+from schemas.HolderTransactionSync_schema import HolderSyncErrorOut, HolderTransactionSyncSummaryOut
 
 
 
 router = APIRouter(prefix="/holders", tags=["holders"])
+
+def to_sync_summary_out(summary) -> HolderTransactionSyncSummaryOut:
+    return HolderTransactionSyncSummaryOut(
+        holders_processed=summary.holders_processed,
+        events_added=summary.events_added,
+        duplicates_skipped=summary.duplicates_skipped,
+        errors=[
+            HolderSyncErrorOut(
+                holder_id=error.holder_id,
+                address=error.address,
+                message=error.message,
+            )
+            for error in summary.errors
+        ],
+    )
 
 @router.get("/top", response_model=list[TrackedHolderOut])
 def get_top_holders_router(limit: int = 10, db: Session = Depends(get_db)):
@@ -49,3 +66,16 @@ def get_holder_events_router(holder_id: int, limit: int | None = None, db: Sessi
     if not holder:
         raise HTTPException(status_code=404, detail="Holder not found")
     return get_holder_events(db, holder_id=holder_id, limit=limit)
+
+@router.post("/sync-transactions", response_model=HolderTransactionSyncSummaryOut)
+def sync_all_holder_transactions_router(db: Session = Depends(get_db)):
+    summary = sync_all_active_holder_transactions(db)
+    return to_sync_summary_out(summary)
+
+@router.post("/{holder_id}/sync-transactions", response_model=HolderTransactionSyncSummaryOut)
+def sync_one_holder_transactions_router(holder_id: int, db: Session = Depends(get_db)):
+    holder = get_holder_by_id(db, holder_id)
+    if not holder:
+        raise HTTPException(status_code=404, detail="Holder not found")
+    summary = sync_one_holder_transactions(db, holder)
+    return to_sync_summary_out(summary)
