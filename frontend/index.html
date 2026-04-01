@@ -484,6 +484,7 @@
       <div id="holderTxSyncOneHint" class="small">
         Fetches latest and new USDC transactions for this holder.
       </div>
+      <div id="holderTxSyncSummary" class="small">No sync result yet.</div>
       <h3>Holder Transactions</h3>
       <div id="holderDetailMeta" class="detail-grid"></div>
       <div id="holderEventsMeta" class="small">Loading holder details...</div>
@@ -504,6 +505,7 @@
     const holderTxSyncAllHint = document.getElementById("holderTxSyncAllHint");
     const holderTxSyncOneButton = document.getElementById("holderTxSyncOneButton");
     const holderTxSyncOneHint = document.getElementById("holderTxSyncOneHint");
+    const holderTxSyncSummary = document.getElementById("holderTxSyncSummary");
     const holderDetailMeta = document.getElementById("holderDetailMeta");
     const holderEventsMeta = document.getElementById("holderEventsMeta");
     const holderEventsView = document.getElementById("holderEventsView");
@@ -602,6 +604,24 @@
       if (!summary) return "No summary returned.";
       const errorsCount = Array.isArray(summary.errors) ? summary.errors.length : 0;
       return `holders=${summary.holders_processed}, added=${summary.events_added}, duplicates=${summary.duplicates_skipped}, errors=${errorsCount}`;
+    }
+
+    function renderHolderSyncSummary(summary) {
+      if (!holderTxSyncSummary) return;
+
+      if (!summary) {
+        holderTxSyncSummary.textContent = "No sync result yet.";
+        return;
+      }
+
+      const base = formatHolderSyncSummary(summary);
+      const errorLines = Array.isArray(summary.errors)
+        ? summary.errors
+            .map((error) => `holder #${error.holder_id}: ${error.message}`)
+            .join(" | ")
+        : "";
+
+      holderTxSyncSummary.textContent = errorLines ? `${base} | ${errorLines}` : base;
     }
 
     function setActivePage(page) {
@@ -852,6 +872,12 @@
 
       if (holderTxSyncOneButton) holderTxSyncOneButton.disabled = true;
       if (holderTxSyncOneHint) holderTxSyncOneHint.textContent = "Sync is running...";
+      renderHolderSyncSummary({
+        holders_processed: 0,
+        events_added: 0,
+        duplicates_skipped: 0,
+        errors: [],
+      });
 
       const result = await request(
         "POST",
@@ -866,6 +892,7 @@
         if (holderTxSyncOneHint) {
           holderTxSyncOneHint.textContent = formatHolderSyncSummary(result.payload);
         }
+        renderHolderSyncSummary(result.payload);
         await loadHolderDetailPage(currentHolderId);
         return;
       }
@@ -873,6 +900,12 @@
       if (holderTxSyncOneHint) {
         holderTxSyncOneHint.textContent = "Sync failed.";
       }
+      renderHolderSyncSummary({
+        holders_processed: 0,
+        events_added: 0,
+        duplicates_skipped: 0,
+        errors: [{ holder_id: currentHolderId, message: "Sync failed on request level." }],
+      });
     }
 
     function getWallet() {
